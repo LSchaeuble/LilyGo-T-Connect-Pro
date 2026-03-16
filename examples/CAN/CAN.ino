@@ -2,7 +2,7 @@
  * @Description: CAN test
  * @Author: LILYGO_L
  * @Date: 2024-11-07 10:04:14
- * @LastEditTime: 2025-02-05 13:50:24
+ * @LastEditTime: 2026-03-14 17:24:28
  * @License: GPL 3.0
  */
 
@@ -192,6 +192,7 @@ void loop()
         while (twai_receive(&rx_buf, 0) == ESP_OK)
         {
             Twai_Receive_Message(rx_buf);
+            delay(10);
         }
     }
 

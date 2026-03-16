@@ -2,7 +2,7 @@
  * @Description: 出厂测试程序
  * @Author: LILYGO_L
  * @Date: 2025-02-05 13:48:33
- * @LastEditTime: 2025-09-17 11:53:28
+ * @LastEditTime: 2026-03-16 10:43:07
  * @License: GPL 3.0
  */
 
@@ -24,8 +24,8 @@
 
 #define SOFTWARE_NAME "Original_Test"
 
-#define SOFTWARE_LASTEDITTIME "202509171153"
-#if defined T_Connect_Pro_V1_0_SX1262 || T_Connect_Pro_V1_0_SX1276
+#define SOFTWARE_LASTEDITTIME "202603160939"
+#if defined T_Connect_Pro_V1_0_SX1262 || defined T_Connect_Pro_V1_0_SX1276
 #define BOARD_VERSION "V1.0"
 #elif defined T_Connect_Pro_V1_1_SX1276
 #define BOARD_VERSION "V1.1"
@@ -48,7 +48,6 @@
 
 // Intervall:
 #define POLLING_RATE_MS 100
-#define TWAI_TRANSMIT_OVERTIME_MS 1000
 
 // 文件下载链接
 // const char *fileDownloadUrl = "https://code.visualstudio.com/docs/?dv=win64user";//vscode
@@ -389,7 +388,7 @@ struct Lora_Operator
 
     struct
     {
-        float value = 860.0;
+        float value = 868.0;
         bool change_flag = false;
     } frequency;
     struct
@@ -790,7 +789,7 @@ void Twai_Send_Message()
     message.data[7] = (uint8_t)CAN_OP.device_1.send_data;
 
     // Queue message for transmission
-    if (twai_transmit(&message, pdMS_TO_TICKS(TWAI_TRANSMIT_OVERTIME_MS)) == ESP_OK)
+    if (twai_transmit(&message, 0) == ESP_OK)
     {
         printf("Message queued for transmission\n");
     }
@@ -803,23 +802,17 @@ void Twai_Send_Message()
 void Twai_Receive_Message(twai_message_t &message)
 {
     // Process received message
-    if (message.extd)
-    {
-        Serial.println("Message is in Extended Format");
-    }
-    else
-    {
-        Serial.println("Message is in Standard Format");
-    }
-    Serial.printf("ID: 0x%X\n", message.identifier);
+    // if (message.extd)
+    // {
+    //     Serial.println("Message is in Extended Format");
+    // }
+    // else
+    // {
+    //     Serial.println("Message is in Standard Format");
+    // }
+    // Serial.printf("ID: 0x%X\n", message.identifier);
     if (!(message.rtr))
     {
-        for (int i = 0; i < message.data_length_code; i++)
-        {
-            Serial.printf("Data [%d] = %d\n", i, message.data[i]);
-        }
-        Serial.println("");
-
         if ((message.data[0] == 0x0A) &&
             (message.data[1] == 0x0A) &&
             (message.data[2] == 0x0A) &&
@@ -836,8 +829,28 @@ void Twai_Receive_Message(twai_message_t &message)
             // 清除错误计数看门狗
             CAN_OP.device_1.error.count = 0;
             CAN_OP.device_1.send_flag = true;
-            CycleTime_7 = millis() + 500;
+            CycleTime_7 = millis() + 1000;
         }
+        else
+        {
+            Serial.printf("[CAN] Check Data Failed\n");
+
+            for (int i = 0; i < message.data_length_code; i++)
+            {
+                Serial.printf("Error Data [%d] = %d\n", i, message.data[i]);
+            }
+            Serial.println("");
+
+            CAN_OP.device_1.error.code = "Data error";
+            CAN_OP.device_1.connection_status = CAN_OP.state::PAUSE;
+        }
+    }
+    else
+    {
+        CAN_OP.device_1.send_flag = true;
+        CycleTime_7 = millis() + 3000;
+
+        Serial.println("[CAN] Received remote frame but no data, retransmitting");
     }
 }
 
@@ -1763,16 +1776,16 @@ void GFX_Print_RS485_Info_Loop(void)
                 {
                     // delay(500);
 
-                    Serial.printf("[RS232] Check Data Successful\n");
-                    Serial.printf("[RS232] Check Data: %d\n", RS485_OP.device_1.send_data);
-                    Serial.printf("[RS232] Received Data: %d\n", (uint32_t)uart_receive_package[1] << 24 | (uint32_t)uart_receive_package[2] << 16 |
-                                                                     (uint32_t)uart_receive_package[3] << 8 | (uint32_t)uart_receive_package[4]);
-                    Serial.printf("[RS232] Received Buf[1]: %#X\n", uart_receive_package[1]);
-                    Serial.printf("[RS232] Received Buf[2]: %#X\n", uart_receive_package[2]);
-                    Serial.printf("[RS232] Received Buf[3]: %#X\n", uart_receive_package[3]);
-                    Serial.printf("[RS232] Received Buf[4]: %#X\n", uart_receive_package[4]);
+                    // Serial.printf("[RS232] Check Data Successful\n");
+                    // Serial.printf("[RS232] Check Data: %d\n", RS485_OP.device_1.send_data);
+                    // Serial.printf("[RS232] Received Data: %d\n", (uint32_t)uart_receive_package[1] << 24 | (uint32_t)uart_receive_package[2] << 16 |
+                    //                                                  (uint32_t)uart_receive_package[3] << 8 | (uint32_t)uart_receive_package[4]);
+                    // Serial.printf("[RS232] Received Buf[1]: %#X\n", uart_receive_package[1]);
+                    // Serial.printf("[RS232] Received Buf[2]: %#X\n", uart_receive_package[2]);
+                    // Serial.printf("[RS232] Received Buf[3]: %#X\n", uart_receive_package[3]);
+                    // Serial.printf("[RS232] Received Buf[4]: %#X\n", uart_receive_package[4]);
 
-                    Serial.printf("[RS232] Received Buf[105]: %#X\n", uart_receive_package[104]);
+                    // Serial.printf("[RS232] Received Buf[105]: %#X\n", uart_receive_package[104]);
 
                     RS485_OP.device_1.receive_data =
                         ((uint32_t)uart_receive_package[1] << 24) |
@@ -1787,7 +1800,7 @@ void GFX_Print_RS485_Info_Loop(void)
                     RS485_OP.device_1.error.count = 0;
 
                     RS485_OP.device_1.send_flag = true;
-                    CycleTime_2 = millis() + 500;
+                    CycleTime_2 = millis() + 1000;
                 }
             }
             else
@@ -1859,16 +1872,16 @@ void GFX_Print_RS485_Info_Loop(void)
                 {
                     // delay(500);
 
-                    Serial.printf("[RS485] Check Data Successful\n");
-                    Serial.printf("[RS485] Check Data: %d\n", RS485_OP.device_2.send_data);
-                    Serial.printf("[RS485] Received Data: %d\n", (uint32_t)uart_receive_package[1] << 24 | (uint32_t)uart_receive_package[2] << 16 |
-                                                                     (uint32_t)uart_receive_package[3] << 8 | (uint32_t)uart_receive_package[4]);
-                    Serial.printf("[RS485] Received Buf[1]: %#X\n", uart_receive_package[1]);
-                    Serial.printf("[RS485] Received Buf[2]: %#X\n", uart_receive_package[2]);
-                    Serial.printf("[RS485] Received Buf[3]: %#X\n", uart_receive_package[3]);
-                    Serial.printf("[RS485] Received Buf[4]: %#X\n", uart_receive_package[4]);
+                    // Serial.printf("[RS485] Check Data Successful\n");
+                    // Serial.printf("[RS485] Check Data: %d\n", RS485_OP.device_2.send_data);
+                    // Serial.printf("[RS485] Received Data: %d\n", (uint32_t)uart_receive_package[1] << 24 | (uint32_t)uart_receive_package[2] << 16 |
+                    //                                                  (uint32_t)uart_receive_package[3] << 8 | (uint32_t)uart_receive_package[4]);
+                    // Serial.printf("[RS485] Received Buf[1]: %#X\n", uart_receive_package[1]);
+                    // Serial.printf("[RS485] Received Buf[2]: %#X\n", uart_receive_package[2]);
+                    // Serial.printf("[RS485] Received Buf[3]: %#X\n", uart_receive_package[3]);
+                    // Serial.printf("[RS485] Received Buf[4]: %#X\n", uart_receive_package[4]);
 
-                    Serial.printf("[RS485] Received Buf[105]: %#X\n", uart_receive_package[104]);
+                    // Serial.printf("[RS485] Received Buf[105]: %#X\n", uart_receive_package[104]);
 
                     RS485_OP.device_2.receive_data =
                         ((uint32_t)uart_receive_package[1] << 24) |
@@ -1883,7 +1896,7 @@ void GFX_Print_RS485_Info_Loop(void)
                     RS485_OP.device_2.error.count = 0;
 
                     RS485_OP.device_2.send_flag = true;
-                    CycleTime_4 = millis() + 500;
+                    CycleTime_4 = millis() + 1000;
                 }
             }
             else
@@ -1913,7 +1926,7 @@ void GFX_Print_RS485_Info_Loop(void)
         }
     }
 
-    if ((RS485_OP.device_1.connection_status != RS485_OP.state::PAUSE) &&
+    if ((RS485_OP.device_1.connection_status != RS485_OP.state::PAUSE) ||
         RS485_OP.device_2.connection_status != RS485_OP.state::PAUSE)
     {
         if (millis() > CycleTime_3)
@@ -2000,8 +2013,8 @@ void GFX_Print_CAN_Info_Loop(void)
         uint32_t alerts_triggered;
         twai_read_alerts(&alerts_triggered, pdMS_TO_TICKS(POLLING_RATE_MS));
         // 总线状态信息
-        twai_status_info_t twai_status_info;
-        twai_get_status_info(&twai_status_info);
+        // twai_status_info_t twai_status_info;
+        // twai_get_status_info(&twai_status_info);
 
         // switch (alerts_triggered)
         // {
@@ -2074,6 +2087,7 @@ void GFX_Print_CAN_Info_Loop(void)
             while (twai_receive(&rx_buf, 0) == ESP_OK)
             {
                 Twai_Receive_Message(rx_buf);
+                delay(10);
             }
         }
     }
@@ -2540,8 +2554,6 @@ void GFX_Print_SX12xx_Info_Loop()
                 // send another one
                 Serial.println("[SX12xx] Sending another packet ... ");
 
-                radio.finishTransmit();
-
                 radio.transmit(Lora_Op.send_package, 16);
                 radio.startReceive();
 
@@ -2768,7 +2780,8 @@ void Original_Test_5()
     // 清除错误计数看门狗
     RS485_OP.device_2.error.count = 0;
 
-    // CAN_OP.device_1.send_flag = true;
+    // CAN_OP.device_1.send_flag = true;、
+    CAN_OP.device_1.send_data = 0;
     CAN_OP.device_1.connection_status = CAN_OP.state::UNCONNECTED;
     // 清除错误
     CAN_OP.device_1.error.code = "null";
@@ -3166,28 +3179,40 @@ void Original_Test_Loop()
 
                 if (GFX_Print_RS485_CAN_Connect_Button_Trigger(touch_x, touch_y) == true)
                 {
-                    RS485_OP.device_1.send_flag = true;
-                    RS485_OP.device_1.send_data = 0;
-                    RS485_OP.device_1.connection_status = RS485_OP.state::CONNECTING;
-                    // 清除错误计数看门狗
-                    RS485_OP.device_1.error.count = 0;
+                    if (RS485_OP.device_1.connection_status != RS485_OP.state::CONNECTED)
+                    {
+                        RS485_OP.device_1.send_flag = true;
+                        RS485_OP.device_1.send_data = 0;
+                        RS485_OP.device_1.connection_status = RS485_OP.state::CONNECTING;
+                        // 清除错误计数看门狗
+                        RS485_OP.device_1.error.count = 0;
 
-                    RS485_OP.device_2.send_flag = true;
-                    RS485_OP.device_2.send_data = 0;
-                    RS485_OP.device_2.connection_status = RS485_OP.state::CONNECTING;
-                    // 清除错误计数看门狗
-                    RS485_OP.device_2.error.count = 0;
+                        CycleTime_2 = millis() + 1000;
+                    }
 
-                    CAN_OP.device_1.send_flag = true;
-                    CAN_OP.device_1.connection_status = CAN_OP.state::CONNECTING;
-                    // 清除错误
-                    CAN_OP.device_1.error.code = "null";
-                    // 清除错误计数看门狗
-                    CAN_OP.device_1.error.count = 0;
+                    if (RS485_OP.device_2.connection_status != RS485_OP.state::CONNECTED)
+                    {
+                        RS485_OP.device_2.send_flag = true;
+                        RS485_OP.device_2.send_data = 0;
+                        RS485_OP.device_2.connection_status = RS485_OP.state::CONNECTING;
+                        // 清除错误计数看门狗
+                        RS485_OP.device_2.error.count = 0;
 
-                    CycleTime_2 = millis() + 1000;
-                    CycleTime_4 = millis() + 1000;
-                    CycleTime_7 = millis() + 1000;
+                        CycleTime_4 = millis() + 1000;
+                    }
+
+                    if (CAN_OP.device_1.connection_status != CAN_OP.state::CONNECTED)
+                    {
+                        CAN_OP.device_1.send_flag = true;
+                        CAN_OP.device_1.send_data = 0;
+                        CAN_OP.device_1.connection_status = CAN_OP.state::CONNECTING;
+                        // 清除错误
+                        CAN_OP.device_1.error.code = "null";
+                        // 清除错误计数看门狗
+                        CAN_OP.device_1.error.count = 0;
+
+                        CycleTime_7 = millis() + 1000;
+                    }
                 }
             }
             // }
